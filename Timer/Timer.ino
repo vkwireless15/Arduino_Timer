@@ -1,7 +1,7 @@
 // простейшие динамические эффекты
 // сначала ознакомься с примером microLED_guide !!!
 
-#define STRIP_PIN 3     // пин ленты
+#define STRIP_PIN 2     // пин ленты
 #define NUMLEDS 86      // кол-во светодиодов
 
 #define COLOR_DEBTH 3
@@ -15,7 +15,7 @@ microLED<NUMLEDS, STRIP_PIN, MLED_NO_CLOCK, LED_WS2818, ORDER_GRB, CLI_AVER> str
 char Min = 0, Sec = 0;
 char SelectedColor = WhiteCl;
 char StartPausa = 4, Stop = 5, Up = 6, Down = 7;
-char IsStarted = 0, Dir = 0, IsPause = 0, IsDemo = 1, Britn = 180;
+char IsStarted = 0, Dir = 0, IsPause = 0, IsDemo = 1, Britn = 180, IsWhiteMode = 0;
 
 long StartTime = 0, StopTime = 0, CurrentTime = 0, ScreenTimeout = 0;
 
@@ -276,11 +276,15 @@ void loop() {
           StartTime = millis();
           StopTime = millis() + (long)Min * 60 * 1000;
           ScreenTimeout = millis() + 60000;
+
+          if(Min == 0)
+          { IsWhiteMode = 1; }
+          
           while (digitalRead(StartPausa) == 0)
           {
 
           }
-          delay(300);
+          delay(100);
         }
       }
       else
@@ -315,7 +319,11 @@ void loop() {
             Min = CurrentTime / 1000 / 60;
             Sec = (CurrentTime / 1000) - ((long)Min * 60);
             CurrentTime = millis() - StopTime;
+
+            if(IsWhiteMode == 0)
             SelectedColor = RedCl;
+            else
+            SelectedColor = WhiteCl;
           }
 
           if (digitalRead(Stop) == 0)
