@@ -271,19 +271,20 @@ void loop() {
 
         if (digitalRead(StartPausa) == 0)
         {
-          SelectedColor = GreenCl;
-          IsStarted = 1;
           StartTime = millis();
           StopTime = millis() + (long)Min * 60 * 1000;
           ScreenTimeout = millis() + 60000;
 
           if(Min == 0)
           { IsWhiteMode = 1; }
+          else
+          { SelectedColor = GreenCl;}
           
           while (digitalRead(StartPausa) == 0)
           {
 
           }
+          IsStarted = 1;
           delay(100);
         }
       }
