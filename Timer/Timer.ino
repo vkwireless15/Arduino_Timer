@@ -22,6 +22,7 @@ long StartTime = 0, StopTime = 0, CurrentTime = 0, ScreenTimeout = 0;
 
 
 void setup() {
+  Serial.begin(9600);
   strip.setBrightness(Britn);
   pinMode(StartPausa, INPUT);
   pinMode(Stop, INPUT);
@@ -266,6 +267,7 @@ void loop() {
         {
           Min = 0;
           Sec = 0;
+          IsWhiteMode = 0;
           ScreenTimeout = millis() + 60000;
         }
 
@@ -274,18 +276,16 @@ void loop() {
           StartTime = millis();
           StopTime = millis() + (long)Min * 60 * 1000;
           ScreenTimeout = millis() + 60000;
+          IsStarted = 1;
 
           if(Min == 0)
-          { IsWhiteMode = 1; }
+          { IsWhiteMode = 1;}
           else
           { SelectedColor = GreenCl;}
           
           while (digitalRead(StartPausa) == 0)
-          {
-
-          }
-          IsStarted = 1;
-          delay(100);
+          { }
+          delay(200);
         }
       }
       else
@@ -304,7 +304,7 @@ void loop() {
             Currnt = CurrentTime / 1000;
             Rest = Currnt / Tim * 100;
 
-            if (Rest < 10)
+            if (Rest < 15)
             {
               SelectedColor = YellowCl;
             }
