@@ -1,7 +1,7 @@
 // простейшие динамические эффекты
 // сначала ознакомься с примером microLED_guide !!!
 
-#define STRIP_PIN 2     // пин ленты
+#define STRIP_PIN 1     // пин ленты
 #define NUMLEDS 86      // кол-во светодиодов
 
 #define COLOR_DEBTH 3
