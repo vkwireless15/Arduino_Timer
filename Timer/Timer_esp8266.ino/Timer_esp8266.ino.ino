@@ -18,7 +18,7 @@ const char *ssid = APSSID;
 const char *password = APPSK;
 
 ESP8266WebServer webp(80);
-ESP8266WebServer clocks(8080);
+WiFiServer clocks(8080);
 
 
 
@@ -60,7 +60,7 @@ uint8_t hue = 0;
 
 
 void handleRootP() {
-  
+
   char timeStr[6];
   sprintf(timeStr, "%02d:%02d", Min, Sec);
 
@@ -86,32 +86,57 @@ void handleRootP() {
   html += "</head><body>";
   html += "<div class='timer'>" + String(timeStr) + "</div>";
   html += "</body></html>";
-  
+
   webp.send(200, "text/html", html);
 }
 
-void handleRootC() {
-  clocks.send(200, "text/html", "<h1>Protocol</h1>");
+void ClockClient() {
+  char timeStr[13];
+  sprintf(timeStr, "%02d:%02d:%02d:%02d:%02d", Min, Sec, SelectedColor, IsStarted, IsDemo);
+  String Mess = String(timeStr);
+  
+  WiFiClient client = clocks.available();
+  
+  if (client) 
+  {
+    String request = "";
+
+    while (client.connected()) 
+    {
+      if (client.available()) 
+      {
+        char c = client.read();
+        request += c;
+      }
+      else
+      {
+        break;
+      }
+    }
+    client.print(Mess);
+    delay(10);
+    client.stop();
+  }
+  
 }
 
 
 void setup() {
-    delay( 1000 ); // power-up safety delay
-    FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-    FastLED.setBrightness(  Britn );
-    
-    currentPalette = RainbowColors_p;
-    currentBlending = LINEARBLEND;
+  delay( 1000 ); // power-up safety delay
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.setBrightness(  Britn );
 
-    mux.begin(PIN_DATA, PIN_LOAD, PIN_CLK);
+  currentPalette = RainbowColors_p;
+  currentBlending = LINEARBLEND;
 
-    WiFi.softAP(ssid, password);
-    
-    webp.on("/", handleRootP);
-    webp.begin();
+  mux.begin(PIN_DATA, PIN_LOAD, PIN_CLK);
 
-    clocks.on("/", handleRootC);
-    clocks.begin();
+  WiFi.softAP(ssid, password);
+
+  webp.on("/", handleRootP);
+  webp.begin();
+
+  clocks.begin();
 }
 
 void SetSegment(char Seg, char Color_)
@@ -298,7 +323,7 @@ void ShowNums(char Color)
   Num3 = Sec / 10;
   Num4 = Sec % 10;
 
-  FastLED.clear(); 
+  FastLED.clear();
   SetNum(0, Num1, Color);
   SetNum(1, Num2, Color);
 
@@ -309,41 +334,74 @@ void ShowNums(char Color)
 
 char GetButton(char Bt)
 {
+  bool state = 0;
   mux.update();
-  if(Bt == StartPausa)
+  for (int i = 0; i < 8; i++)
   {
-    bool But_st = mux.read(4);
-    if(But_st == true)
-    {return 1;}
+    if (i != 7)
+    {
+      state |= mux.read(i);
+      state <<= 1;
+    }
     else
-    {return 0;}
+    {
+      state |= mux.read(i);
+    }
   }
 
-  if(Bt == Stop)
+  if (state != 0 && state != 255)
   {
-    bool But_st = mux.read(5);
-    if(But_st == true)
-    {return 1;}
-    else
-    {return 0;}
-  }
+    if (Bt == StartPausa)
+    {
+      bool But_st = mux.read(4);
+      if (But_st == true)
+      {
+        return 1;
+      }
+      else
+      {
+        return 0;
+      }
+    }
 
-  if(Bt == Up)
-  {
-    bool But_st = mux.read(6);
-    if(But_st == true)
-    {return 1;}
-    else
-    {return 0;}
-  }
+    if (Bt == Stop)
+    {
+      bool But_st = mux.read(5);
+      if (But_st == true)
+      {
+        return 1;
+      }
+      else
+      {
+        return 0;
+      }
+    }
 
-  if(Bt == Down)
-  {
-    bool But_st = mux.read(7);
-    if(But_st == true)
-    {return 1;}
-    else
-    {return 0;}
+    if (Bt == Up)
+    {
+      bool But_st = mux.read(6);
+      if (But_st == true)
+      {
+        return 1;
+      }
+      else
+      {
+        return 0;
+      }
+    }
+
+    if (Bt == Down)
+    {
+      bool But_st = mux.read(7);
+      if (But_st == true)
+      {
+        return 1;
+      }
+      else
+      {
+        return 0;
+      }
+    }
   }
   return 1;
 }
@@ -357,8 +415,8 @@ void loop()
   while (1)
   {
     webp.handleClient();
-    clocks.handleClient();
-    
+    ClockClient();
+
     if (IsDemo == 0)
     {
       if (IsStarted == 0)
@@ -399,11 +457,15 @@ void loop()
           ScreenTimeout = millis() + 60000;
           IsStarted = 1;
 
-          if(Min == 0)
-          { IsWhiteMode = 1;}
+          if (Min == 0)
+          {
+            IsWhiteMode = 1;
+          }
           else
-          { SelectedColor = GreenCl;}
-          
+          {
+            SelectedColor = GreenCl;
+          }
+
           while (GetButton(StartPausa) == 0)
           { }
           delay(200);
@@ -442,10 +504,10 @@ void loop()
             Sec = (CurrentTime / 1000) - ((long)Min * 60);
             CurrentTime = millis() - StopTime;
 
-            if(IsWhiteMode == 0)
-            SelectedColor = RedCl;
+            if (IsWhiteMode == 0)
+              SelectedColor = RedCl;
             else
-            SelectedColor = WhiteCl;
+              SelectedColor = WhiteCl;
           }
 
           if (GetButton(Stop) == 0)
@@ -509,30 +571,48 @@ void loop()
       ShowNums(SelectedColor);
       delay(30);
 
-      if(ScreenTimeout < millis() && IsStarted == 0)
-      { IsDemo = 1;}
+      if (ScreenTimeout < millis() && IsStarted == 0)
+      {
+        IsDemo = 1;
+      }
     }
     else
     {
-      if(Cnt < 1000)
-      { FastLED.setBrightness(70); rainbow(); }
+      if (Cnt < 1000)
+      {
+        FastLED.setBrightness(70);
+        rainbow();
+      }
 
-      if(Cnt > 1000 && Cnt < 2000)
-      { FastLED.setBrightness(70); filler(); }
+      if (Cnt > 1000 && Cnt < 2000)
+      {
+        FastLED.setBrightness(70);
+        filler();
+      }
 
-      if(Cnt > 2000 && Cnt < 3000)
-      { FastLED.setBrightness(50); colorCycle(); }
+      if (Cnt > 2000 && Cnt < 3000)
+      {
+        FastLED.setBrightness(50);
+        colorCycle();
+      }
 
-      if(Cnt > 3000 && Cnt < 3200)
-      { FastLED.setBrightness(70); runningDots(); }
+      if (Cnt > 3000 && Cnt < 3200)
+      {
+        FastLED.setBrightness(70);
+        runningDots();
+      }
 
-      if(Cnt > 3200)
-      { breathing();}
+      if (Cnt > 3200)
+      {
+        breathing();
+      }
 
       Cnt++;
-      if(Cnt > 4400)
-      { Cnt = 0;}
-      
+      if (Cnt > 4400)
+      {
+        Cnt = 0;
+      }
+
       FastLED.show();
       delay(30);
 
@@ -572,72 +652,72 @@ void loop()
 
 
 
-  
-    //ChangePalettePeriodically();
-    
-    //static uint8_t startIndex = 0;
-    //startIndex = startIndex + 1; /* motion speed */
-    
-    //FillLEDsFromPaletteColors( startIndex);
-    
-    //FastLED.show();
-    //FastLED.delay(1000 / UPDATES_PER_SECOND);
+
+  //ChangePalettePeriodically();
+
+  //static uint8_t startIndex = 0;
+  //startIndex = startIndex + 1; /* motion speed */
+
+  //FillLEDsFromPaletteColors( startIndex);
+
+  //FastLED.show();
+  //FastLED.delay(1000 / UPDATES_PER_SECOND);
 }
 
 
 
 void SetupPurpleAndGreenPalette()
 {
-    CRGB purple = CHSV( HUE_PURPLE, 255, 255);
-    CRGB green  = CHSV( HUE_GREEN, 255, 255);
-    CRGB black  = CRGB::Black;
-    
-    currentPalette = CRGBPalette16(
-                                   green,  green,  black,  black,
-                                   purple, purple, black,  black,
-                                   green,  green,  black,  black,
-                                   purple, purple, black,  black );
+  CRGB purple = CHSV( HUE_PURPLE, 255, 255);
+  CRGB green  = CHSV( HUE_GREEN, 255, 255);
+  CRGB black  = CRGB::Black;
+
+  currentPalette = CRGBPalette16(
+                     green,  green,  black,  black,
+                     purple, purple, black,  black,
+                     green,  green,  black,  black,
+                     purple, purple, black,  black );
 }
 
 void SetupTotallyRandomPalette()
 {
-    for( int i = 0; i < 16; ++i) {
-        currentPalette[i] = CHSV( random8(), 255, random8());
-    }
+  for ( int i = 0; i < 16; ++i) {
+    currentPalette[i] = CHSV( random8(), 255, random8());
+  }
 }
 
 void SetupBlackAndWhiteStripedPalette()
 {
-    // 'black out' all 16 palette entries...
-    fill_solid( currentPalette, 16, CRGB::Black);
-    // and set every fourth one to white.
-    currentPalette[0] = CRGB::White;
-    currentPalette[4] = CRGB::White;
-    currentPalette[8] = CRGB::White;
-    currentPalette[12] = CRGB::White;
-    
+  // 'black out' all 16 palette entries...
+  fill_solid( currentPalette, 16, CRGB::Black);
+  // and set every fourth one to white.
+  currentPalette[0] = CRGB::White;
+  currentPalette[4] = CRGB::White;
+  currentPalette[8] = CRGB::White;
+  currentPalette[12] = CRGB::White;
+
 }
 
 const TProgmemPalette16 myRedWhiteBluePalette_p FL_PROGMEM =
 {
-    CRGB::Red,
-    CRGB::Gray, // 'white' is too bright compared to red and blue
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Blue,
-    CRGB::Black,
-    CRGB::Black
+  CRGB::Red,
+  CRGB::Gray, // 'white' is too bright compared to red and blue
+  CRGB::Blue,
+  CRGB::Black,
+
+  CRGB::Red,
+  CRGB::Gray,
+  CRGB::Blue,
+  CRGB::Black,
+
+  CRGB::Red,
+  CRGB::Red,
+  CRGB::Gray,
+  CRGB::Gray,
+  CRGB::Blue,
+  CRGB::Blue,
+  CRGB::Black,
+  CRGB::Black
 };
 
 void fill(CRGB color) {
@@ -649,9 +729,9 @@ void fill(CRGB color) {
 
 
 void rainbow() {
-  fill_rainbow(leds, NUM_LEDS, hue, 255/NUM_LEDS);
+  fill_rainbow(leds, NUM_LEDS, hue, 255 / NUM_LEDS);
   FastLED.show();
-  
+
   hue++;
 }
 
@@ -660,55 +740,57 @@ void filler() {
   static uint8_t heat[NUM_LEDS];
 
   // Step 1.  Cool down every cell a little
-    for( int i = 0; i < NUM_LEDS; i++) {
-      heat[i] = qsub8( heat[i],  random8(0, ((55 * 10) / NUM_LEDS) + 2));
-    }
-  
-    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-    for( int k= NUM_LEDS - 1; k >= 2; k--) {
-      heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
-    }
-    
-    // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-    if( random8() < 120 ) {
-      int y = random8(7);
-      heat[y] = qadd8( heat[y], random8(160,255) );
-    }
+  for ( int i = 0; i < NUM_LEDS; i++) {
+    heat[i] = qsub8( heat[i],  random8(0, ((55 * 10) / NUM_LEDS) + 2));
+  }
 
-    // Step 4.  Map from heat cells to LED colors
-    for( int j = 0; j < NUM_LEDS; j++) {
-      CRGB color = HeatColor( heat[j]);
-      int pixelnumber;
-      if( gReverseDirection ) {
-        pixelnumber = (NUM_LEDS-1) - j;
-      } else {
-        pixelnumber = j;
-      }
-      leds[pixelnumber] = color;
+  // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+  for ( int k = NUM_LEDS - 1; k >= 2; k--) {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
+  }
+
+  // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
+  if ( random8() < 120 ) {
+    int y = random8(7);
+    heat[y] = qadd8( heat[y], random8(160, 255) );
+  }
+
+  // Step 4.  Map from heat cells to LED colors
+  for ( int j = 0; j < NUM_LEDS; j++) {
+    CRGB color = HeatColor( heat[j]);
+    int pixelnumber;
+    if ( gReverseDirection ) {
+      pixelnumber = (NUM_LEDS - 1) - j;
+    } else {
+      pixelnumber = j;
     }
+    leds[pixelnumber] = color;
+  }
 }
 
-void colorCycle() 
+void colorCycle()
 {
   static int counter = 0, clrCount = 0;
 
-  if(clrCount == 0)
-  fill(CRGB::Red);
+  if (clrCount == 0)
+    fill(CRGB::Red);
 
-  if(clrCount == 1)
-  fill(CRGB::Green);
+  if (clrCount == 1)
+    fill(CRGB::Green);
 
-  if(clrCount == 2)
-  fill(CRGB::Blue);
+  if (clrCount == 2)
+    fill(CRGB::Blue);
 
-  
+
   counter++;
-  if (counter >= NUM_LEDS) 
+  if (counter >= NUM_LEDS)
   {
     counter = 0;
     clrCount++;
-    if(clrCount == 3)
-    {clrCount = 0;}
+    if (clrCount == 3)
+    {
+      clrCount = 0;
+    }
   }
 }
 
